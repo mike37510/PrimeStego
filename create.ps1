@@ -1,8 +1,8 @@
-# D√©finir le dossier contenant les fichiers ZIP et le dossier de sortie
+# DÈfinir les dossiers
 $zipFolder = "C:\MyData\zip"
 $outputFolder = "C:\MyData\photos"
 
-# Cr√©er le dossier de sortie s'il n'existe pas
+# CrÈer le dossier de sortie s'il n'existe pas
 if (-Not (Test-Path $outputFolder)) {
     New-Item -ItemType Directory -Path $outputFolder
 }
@@ -16,28 +16,11 @@ function Get-FileSizeInMB {
     return [math]::Round($fileInfo.Length / 1MB, 2)
 }
 
-# Fonction pour g√©n√©rer un mot al√©atoire
-function Generate-RandomWord {
-    param (
-        [int]$length = 5 # Longueur par d√©faut du mot
-    )
-
-    $random = New-Object System.Random
-    $characters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-
-    $word = ""
-    1..$length | ForEach-Object {
-        $randomIndex = $random.Next(0, $characters.Length)
-        $word += $characters[$randomIndex]
-    }
-
-    return $word
-}
-
-# Fonction pour g√©n√©rer une image avec des formes et des couleurs al√©atoires
+# Fonction pour gÈnÈrer une image avec des formes et des couleurs alÈatoires
 function Generate-RandomImage {
     param (
         [string]$outputFilePath,
+        [string]$fileName,
         [int]$width = 3840,
         [int]$height = 2160,
         [int]$maxShapes = 10
@@ -52,7 +35,7 @@ function Generate-RandomImage {
     $random = New-Object System.Random
     $brushes = [System.Collections.ArrayList]@()
 
-    # Ajouter des couleurs al√©atoires aux pinceaux
+    # Ajouter des couleurs alÈatoires aux pinceaux
     1..$maxShapes | ForEach-Object {
         $brushes.Add([System.Drawing.SolidBrush]::new([System.Drawing.Color]::FromArgb(
             $random.Next(0, 256), # R
@@ -61,9 +44,9 @@ function Generate-RandomImage {
         )))
     }
 
-    # Dessiner des formes al√©atoires
+    # Dessiner des formes alÈatoires
     1..$random.Next(1, $maxShapes) | ForEach-Object {
-        $shapeType = $random.Next(0, 3) # 0: rectangle, 1: cercle, 2: texte
+        $shapeType = $random.Next(0, 5) # 0: rectangle, 1: cercle, 2: triangle, 3: trait, 4: pixel
         $colorIndex = $random.Next(0, $brushes.Count)
 
         switch ($shapeType) {
@@ -79,15 +62,39 @@ function Generate-RandomImage {
                 $rectangle = [System.Drawing.Rectangle]::new($x, $y, 200, 200)
                 $graphics.FillEllipse($brushes[$colorIndex], $rectangle)
             }
-            2 { # Texte
-                $word = Generate-RandomWord
-                $font = [System.Drawing.Font]::new("Arial", 24)
-                $x = $random.Next(0, $width - 200)
-                $y = $random.Next(0, $height - 200)
-                $graphics.DrawString($word, $font, $brushes[$colorIndex], $x, $y)
+            2 { # Triangle
+                $points = @(
+                    [System.Drawing.Point]::new($random.Next(0, $width), $random.Next(0, $height)),
+                    [System.Drawing.Point]::new($random.Next(0, $width), $random.Next(0, $height)),
+                    [System.Drawing.Point]::new($random.Next(0, $width), $random.Next(0, $height))
+                )
+                $graphics.FillPolygon($brushes[$colorIndex], $points)
+            }
+            3 { # Trait
+                $x1 = $random.Next(0, $width)
+                $y1 = $random.Next(0, $height)
+                $x2 = $random.Next(0, $width)
+                $y2 = $random.Next(0, $height)
+                $graphics.DrawLine([System.Drawing.Pen]::new($brushes[$colorIndex].Color), $x1, $y1, $x2, $y2)
+            }
+            4 { # Pixel
+                $x = $random.Next(0, $width)
+                $y = $random.Next(0, $height)
+                $graphics.FillRectangle($brushes[$colorIndex], $x, $y, 1, 1)
             }
         }
     }
+
+    # Afficher le nom du fichier sans l'extension .zip ‡ un endroit alÈatoire
+    $fontSize = $random.Next(24, 60)
+    $font = [System.Drawing.Font]::new("Arial", $fontSize)
+
+    # Calculer la taille du texte pour s'assurer qu'il soit entiËrement visible
+    $textSize = $graphics.MeasureString($fileName, $font)
+    $textX = $random.Next(0, [math]::Max(0, $width - $textSize.Width))
+    $textY = $random.Next(0, [math]::Max(0, $height - $textSize.Height))
+
+    $graphics.DrawString($fileName, $font, [System.Drawing.SolidBrush]::new([System.Drawing.Color]::White), $textX, $textY)
 
     $bitmap.Save($outputFilePath, [System.Drawing.Imaging.ImageFormat]::Jpeg)
     $bitmap.Dispose()
@@ -109,7 +116,7 @@ function Hide-ZipInImage {
     # Combiner les octets de l'image et du fichier ZIP
     $combinedBytes = $imageBytes + $zipBytes
 
-    # √âcrire les octets combin√©s dans le fichier de sortie
+    # …crire les octets combinÈs dans le fichier de sortie
     [System.IO.File]::WriteAllBytes($outputFilePath, $combinedBytes)
 }
 
@@ -117,15 +124,14 @@ function Hide-ZipInImage {
 Get-ChildItem -Path $zipFolder -Filter *.zip | ForEach-Object {
     $zipFile = $_
 
-    # G√©n√©rer une image avec des formes et des couleurs al√©atoires
+    # GÈnÈrer une image avec des formes et des couleurs alÈatoires
     $imageFileName = "$($zipFile.BaseName).jpg"
     $imageFilePath = Join-Path -Path $outputFolder -ChildPath $imageFileName
-    Generate-RandomImage -outputFilePath $imageFilePath
+    Generate-RandomImage -outputFilePath $imageFilePath -fileName $zipFile.BaseName
 
-# Cr√©er le chemin de sortie pour l'image st√©ganographique avec le nom du fichier ZIP
+    # CrÈer le chemin de sortie pour l'image stÈganographique avec le nom du fichier ZIP
     $outputFilePath = Join-Path -Path $outputFolder -ChildPath $imageFileName
 
     # Cacher le fichier ZIP dans l'image
     Hide-ZipInImage -zipFilePath $zipFile.FullName -imageFilePath $imageFilePath -outputFilePath $outputFilePath
 }
-
